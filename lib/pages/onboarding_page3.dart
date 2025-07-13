@@ -1,5 +1,6 @@
 import 'package:doceria_app/widgets/button_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class OnboardingPage3 extends StatelessWidget {
   const OnboardingPage3({super.key});
@@ -26,27 +27,15 @@ class OnboardingPage3 extends StatelessWidget {
               height: 250,
             ),
             const SizedBox(height: 40),
-            ButtonPadrao(text: 'Criar Conta', onPressed: () {}),
+            ButtonPadrao(
+              text: 'Criar Conta',
+              onPressed: () => GoRouter.of(context).go('/autenticacao'),
+            ),
 
             const SizedBox(height: 20),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                elevation: 5,
-                shadowColor: const Color.fromARGB(146, 0, 0, 0),
-                fixedSize: const Size(250, 60),
-                backgroundColor: const Color.fromARGB(255, 255, 169, 251),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: const BorderSide(color: Color(0xFFD64DBD), width: 2),
-                ),
-              ),
-              onPressed: () {
-                // ação para navegar ao cardápio
-              },
-              child: const Text(
-                'Cardápio',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              ),
+            ButtonAlternativo(
+              text: 'Cardapio',
+              onPressed: () => GoRouter.of(context).go('/home'),
             ),
 
             const SizedBox(height: 90),

@@ -1,4 +1,6 @@
+import 'package:doceria_app/widgets/button_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class Apresentacao extends StatelessWidget {
   const Apresentacao({super.key});
@@ -41,7 +43,7 @@ class Apresentacao extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
-                  'Seja bem-vindo à Ice&Cake – aqui o sabor é especial como você.',
+                  'Seja bem-vindo à doceria_app – aqui o sabor é especial como você.',
                   style: TextStyle(
                     color: Color(0xFF750073),
                     fontSize: 30,
@@ -51,32 +53,15 @@ class Apresentacao extends StatelessWidget {
               ),
 
               const SizedBox(height: 70),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  elevation: 5,
-                  shadowColor: Colors.pinkAccent,
-                  fixedSize: Size(250, 60),
-                  backgroundColor: Color.fromARGB(255, 214, 77, 189),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                onPressed: () {},
-                child: Text(
-                  'Continuar',
-                  style: TextStyle(
-                    fontSize: 45,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+              ButtonPadrao(
+                text: 'Começar',
+                onPressed: () => GoRouter.of(context).push('/onboarding'),
               ),
               const SizedBox(height: 70),
             ],
           ),
         ),
       ),
-      backgroundColor: Colors.white,
     );
   }
 }

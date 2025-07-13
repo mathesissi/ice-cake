@@ -1,7 +1,8 @@
 import 'package:doceria_app/pages/apresentacao.dart';
 import 'package:doceria_app/pages/home_page.dart';
+import 'package:doceria_app/pages/autenticacao_page.dart';
 import 'package:doceria_app/pages/onboarding_home.dart';
-import 'package:doceria_app/pages/onboarding_page2.dart';
+import 'package:doceria_app/routers/router.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -12,8 +13,8 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Doceria App',
+    return MaterialApp.router(
+      title: 'ice&cake',
       theme: ThemeData(
         fontFamily: 'Dongle',
         appBarTheme: AppBarTheme(
@@ -25,7 +26,9 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: OnboardingHome(),
+      routerDelegate: routes.routerDelegate,
+      routeInformationParser: routes.routeInformationParser,
+      routeInformationProvider: routes.routeInformationProvider,
     );
   }
 }

@@ -12,6 +12,7 @@ class Torta extends Produto {
     required this.peso,
   }) : super(nome, descricao, preco);
 
+  @override
   void exibirDetalhes() {
     print('Torta: $nome');
     print('Descrição: $descricao');
