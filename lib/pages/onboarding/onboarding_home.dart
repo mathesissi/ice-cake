@@ -1,6 +1,6 @@
-import 'package:doceria_app/pages/onboarding_page1.dart';
-import 'package:doceria_app/pages/onboarding_page2.dart';
-import 'package:doceria_app/pages/onboarding_page3.dart';
+import 'package:doceria_app/pages/onboarding/onboarding_page1.dart';
+import 'package:doceria_app/pages/onboarding/onboarding_page2.dart';
+import 'package:doceria_app/pages/onboarding/onboarding_page3.dart';
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 

@@ -1,6 +1,7 @@
 import 'package:doceria_app/widgets/button_widget.dart';
 import 'package:doceria_app/widgets/input_decoration.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 class AutenticacaoPage extends StatefulWidget {
@@ -20,6 +21,8 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _cpfController = TextEditingController();
+  final _telefoneController = TextEditingController();
 
   @override
   void dispose() {
@@ -27,6 +30,8 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _cpfController.dispose();
+    _telefoneController.dispose();
     super.dispose();
   }
 
@@ -34,10 +39,10 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            Center(
-              child: Text(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const Text(
                 'Ice&Cake',
                 style: TextStyle(
                   fontSize: 75,
@@ -46,149 +51,192 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                   color: Color(0xFF963484),
                 ),
               ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.all(50.0),
-              child: Form(
-                key: _formkey,
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Visibility(
-                          visible: !isLogin,
-                          child: TextFormField(
-                            style: const TextStyle(fontSize: 25),
-                            controller: _nameController,
-                            decoration: getInputDecoration(
-                              'Nome',
-                              Icons.person,
-                            ),
-                            validator: (String? value) {
-                              if (value == null || value.isEmpty) {
-                                return 'O nome não pode ser vazio';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        SizedBox(height: 25),
-                        TextFormField(
-                          style: const TextStyle(fontSize: 25),
-                          controller: _emailController,
-                          decoration: getInputDecoration('Email', Icons.email),
-                          validator: (String? value) {
-                            if (value == null || value.isEmpty) {
-                              return 'O email não pode ser vazio';
-                            }
-                            if (!value.contains('@') || !value.contains('.')) {
-                              return 'O email não é válido';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        SizedBox(height: 20),
-                        TextFormField(
-                          style: const TextStyle(fontSize: 25),
-                          controller: _passwordController,
-                          decoration: getInputDecoration('Senha', Icons.lock),
-                          obscureText: true,
-                          validator: (String? value) {
-                            if (value == null || value.isEmpty) {
-                              return 'A senha não pode ser vazia';
-                            }
-                            if (value.length < 7) {
-                              return 'A senha deve ter no mínimo 7 caracteres';
-                            }
-                            return null;
-                          },
-                        ),
-                        SizedBox(height: 20),
-                        Visibility(
-                          visible: !isLogin,
-                          child: Column(
-                            children: [
-                              TextFormField(
-                                style: const TextStyle(fontSize: 25),
-                                controller: _confirmPasswordController,
-                                decoration: getInputDecoration(
-                                  'Confirmar Senha',
-                                  Icons.lock,
-                                ),
-                                obscureText: true,
-                                validator: (String? value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Confirme a senha';
-                                  }
-                                  if (value != _passwordController.text) {
-                                    return 'As senhas não coincidem';
-                                  }
-                                  return null;
-                                },
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.all(50.0),
+                child: Form(
+                  key: _formkey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Visibility(
+                        visible: !isLogin,
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              style: const TextStyle(fontSize: 25),
+                              controller: _nameController,
+                              decoration: getInputDecoration(
+                                'Nome',
+                                Icons.person,
                               ),
-                              SizedBox(height: 20),
-                              Row(
-                                children: [
-                                  Checkbox(
-                                    value: isChecked,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        isChecked = value!;
-                                      });
-                                    },
-                                  ),
-                                  TextButton(
-                                    onPressed: () {},
-                                    child: Text(
-                                      'Li e concordo com os termos',
-                                      style: TextStyle(
-                                        color: Color.fromARGB(255, 86, 38, 199),
-                                        fontSize: 25,
-                                        fontWeight: FontWeight.bold,
-                                        decoration: TextDecoration.underline,
-                                        decorationColor: Color.fromARGB(
-                                          255,
-                                          86,
-                                          38,
-                                          199,
-                                        ),
+                              validator: (String? value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'O nome não pode ser vazio';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            TextFormField(
+                              style: const TextStyle(fontSize: 25),
+                              controller: _cpfController,
+                              decoration: getInputDecoration(
+                                'CPF',
+                                Icons.badge_outlined,
+                              ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              validator: (String? value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'O CPF não pode ser vazio';
+                                }
+                                if (value.length != 11) {
+                                  return 'O CPF deve conter 11 dígitos';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            TextFormField(
+                              style: const TextStyle(fontSize: 25),
+                              controller: _telefoneController,
+                              decoration: getInputDecoration(
+                                'Telefone',
+                                Icons.phone,
+                              ),
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              validator: (String? value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'O telefone não pode ser vazio';
+                                }
+                                if (value.length < 10 || value.length > 11) {
+                                  return 'O telefone deve ter 10 ou 11 dígitos';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 25),
+                      TextFormField(
+                        style: const TextStyle(fontSize: 25),
+                        controller: _emailController,
+                        decoration: getInputDecoration('Email', Icons.email),
+                        validator: (String? value) {
+                          if (value == null || value.isEmpty) {
+                            return 'O email não pode ser vazio';
+                          }
+                          if (!value.contains('@') || !value.contains('.')) {
+                            return 'O email não é válido';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        style: const TextStyle(fontSize: 25),
+                        controller: _passwordController,
+                        decoration: getInputDecoration('Senha', Icons.lock),
+                        obscureText: true,
+                        validator: (String? value) {
+                          if (value == null || value.isEmpty) {
+                            return 'A senha não pode ser vazia';
+                          }
+                          if (value.length < 7) {
+                            return 'A senha deve ter no mínimo 7 caracteres';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      Visibility(
+                        visible: !isLogin,
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              style: const TextStyle(fontSize: 25),
+                              controller: _confirmPasswordController,
+                              decoration: getInputDecoration(
+                                'Confirmar Senha',
+                                Icons.lock,
+                              ),
+                              obscureText: true,
+                              validator: (String? value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Confirme a senha';
+                                }
+                                if (value != _passwordController.text) {
+                                  return 'As senhas não coincidem';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: isChecked,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      isChecked = value!;
+                                    });
+                                  },
+                                ),
+                                TextButton(
+                                  onPressed: () {},
+                                  child: Text(
+                                    'Li e concordo com os termos',
+                                    style: TextStyle(
+                                      color: Color.fromARGB(255, 86, 38, 199),
+                                      fontSize: 25,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: Color.fromARGB(
+                                        255,
+                                        86,
+                                        38,
+                                        199,
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        SizedBox(height: 50),
-                        ButtonPadrao(
-                          text: (isLogin ? 'Login' : 'Cadastrar'),
-                          onPressed: () {
-                            buttonPrincipal();
-                          },
-                        ),
+                      ),
+                      const SizedBox(height: 50),
+                      ButtonPadrao(
+                        text: (isLogin ? 'Login' : 'Cadastrar'),
+                        onPressed: () {
+                          buttonPrincipal();
+                        },
+                      ),
 
-                        SizedBox(height: 20),
-
-                        ButtonAlternativo(
-                          onPressed: () {
-                            setState(() {
-                              isLogin = !isLogin;
-                            });
-                          },
-                          text: (!isLogin ? 'Conecte-se' : 'Cadastra-se'),
-                        ),
-                      ],
-                    ),
+                      const SizedBox(height: 20),
+                      ButtonAlternativo(
+                        onPressed: () {
+                          setState(() {
+                            isLogin = !isLogin;
+                          });
+                        },
+                        text: (!isLogin ? 'Conecte-se' : 'Cadastra-se'),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -208,7 +256,6 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
       );
       return;
     }
-
     GoRouter.of(context).go('/home');
   }
 }
