@@ -13,8 +13,21 @@ import 'package:doceria_app/pages/user_config_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final routes = GoRouter(
+  initialLocation: '/',
+  redirect: (context, state) async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+    if (state.fullPath == '/' && hasSeenOnboarding) {
+      return '/autenticacao';
+    }
+    if (state.fullPath == '/' && !hasSeenOnboarding) {
+      return null;
+    }
+    return null;
+  },
   routes: [
     GoRoute(path: '/', builder: (context, state) => const Apresentacao()),
     GoRoute(

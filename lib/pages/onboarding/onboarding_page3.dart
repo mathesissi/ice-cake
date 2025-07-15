@@ -1,9 +1,15 @@
 import 'package:doceria_app/widgets/button_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingPage3 extends StatelessWidget {
   const OnboardingPage3({super.key});
+
+  Future<void> _setOnboardingCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hasSeenOnboarding', true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,13 +35,19 @@ class OnboardingPage3 extends StatelessWidget {
             const SizedBox(height: 40),
             ButtonPadrao(
               text: 'Criar Conta',
-              onPressed: () => GoRouter.of(context).go('/autenticacao'),
+              onPressed: () {
+                _setOnboardingCompleted();
+                GoRouter.of(context).go('/autenticacao');
+              },
             ),
 
             const SizedBox(height: 20),
             ButtonAlternativo(
               text: 'Cardapio',
-              onPressed: () => GoRouter.of(context).go('/home'),
+              onPressed: () {
+                _setOnboardingCompleted();
+                GoRouter.of(context).go('/home');
+              },
             ),
 
             const SizedBox(height: 90),

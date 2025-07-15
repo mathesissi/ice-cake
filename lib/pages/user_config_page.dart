@@ -1,6 +1,7 @@
 import 'package:doceria_app/widgets/profile_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UserConfigPage extends StatefulWidget {
   const UserConfigPage({super.key});
@@ -10,6 +11,27 @@ class UserConfigPage extends StatefulWidget {
 }
 
 class _UserConfigPageState extends State<UserConfigPage> {
+  String _userName = 'Nome do Usuário';
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userName = prefs.getString('user_name') ?? 'Usuário';
+    });
+  }
+
+  String _getFirstLetter(String name) {
+    if (name.isEmpty) {
+      return '';
+    }
+    return name[0].toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -23,7 +45,7 @@ class _UserConfigPageState extends State<UserConfigPage> {
                 onPressed: () {
                   GoRouter.of(context).pop();
                 },
-                icon: Icon(Icons.arrow_back),
+                icon: const Icon(Icons.arrow_back),
               ),
               ClipPath(
                 clipper: MyCustomClipper(),
@@ -33,18 +55,27 @@ class _UserConfigPageState extends State<UserConfigPage> {
                   color: const Color.fromRGBO(210, 41, 193, 1),
                 ),
               ),
-              const Positioned(
+              Positioned(
                 bottom: -30,
                 child: CircleAvatar(
                   radius: 90,
                   backgroundColor: Colors.deepPurple,
+
+                  child: Text(
+                    _getFirstLetter(_userName),
+                    style: const TextStyle(
+                      fontSize: 80,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-
           const SizedBox(height: 80),
-          const Text('Nome do Usuário', style: TextStyle(fontSize: 50)),
+
+          Text(_userName, style: const TextStyle(fontSize: 50)),
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,

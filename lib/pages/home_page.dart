@@ -7,6 +7,7 @@ import 'package:doceria_app/model/torta.dart';
 import 'package:doceria_app/widgets/carrossel_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:carousel_slider/carousel_slider.dart'; // Certifique-se de importar este também para CarouselController
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,6 +20,10 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   List<Produto> _produtos = [];
   List<ItemCarrinho> _carrinho = [];
+  // 1. Cria uma instância do CarouselController
+  final CarouselController _carouselController =
+      CarouselController(); // Linha adicionada/corrigida aqui
+
   @override
   void initState() {
     super.initState();
@@ -114,6 +119,25 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // Mapeia o índice do produto na lista atual para o índice da imagem no carrossel global.
+  // IMPORTANTE: Esta lógica depende diretamente da ordem das imagens em imgList no CarrosselWidget
+  // e da ordem dos produtos em _produtos. Mantenha-os sincronizados.
+  int _mapProductIndexToCarouselIndex(int productListIndex) {
+    int baseIndex = 0;
+    switch (_currentIndex) {
+      case 0: // Bolos: Imagens 0, 1, 2
+        baseIndex = 0;
+        break;
+      case 1: // Tortas: Imagens 3, 4, 5
+        baseIndex = 3;
+        break;
+      case 2: // Sorvetes: Imagens 6, 7, 8
+        baseIndex = 6;
+        break;
+    }
+    return baseIndex + productListIndex;
+  }
+
   void _adicionarAoCarrinho(Produto produto) {
     setState(() {
       final index = _carrinho.indexWhere(
@@ -148,7 +172,7 @@ class _HomePageState extends State<HomePage> {
             ? 'BOLOS ARTESANAIS'
             : _currentIndex == 1
             ? 'TORTAS ARTESANAIS'
-            : 'SORVETES GOURMET (100g)';
+            : 'SORVETES GOURMET (100g)'; // Corrigi o texto para 100g aqui também
 
     final emoji =
         _currentIndex == 0
@@ -221,7 +245,10 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               const SizedBox(height: 10),
-              const CarrosselWidget(),
+              // 2. Passa o controller para o CarrosselWidget
+              CarrosselWidget(
+                carouselController: _carouselController,
+              ), // Linha corrigida aqui
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -266,12 +293,25 @@ class _HomePageState extends State<HomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  produto.nome,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 30,
-                                    color: Colors.black,
+                                // 3. Usa TextButton ou GestureDetector para o título
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    alignment: Alignment.centerLeft,
+                                  ),
+                                  onPressed: () {
+                                    // Mapeia o índice do produto para o índice da imagem no carrossel
+                                    final carouselIndex =
+                                        _mapProductIndexToCarouselIndex(index);
+                                  },
+                                  child: Text(
+                                    produto.nome,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 30,
+                                      color:
+                                          Colors.black, // Cor do texto do botão
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 4),

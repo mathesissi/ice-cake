@@ -1,6 +1,7 @@
 import 'package:doceria_app/widgets/input_decoration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MeusDados extends StatefulWidget {
   const MeusDados({super.key});
@@ -17,9 +18,12 @@ class _MeusDadosState extends State<MeusDados> {
   final _cpfController = TextEditingController();
   final _telefoneController = TextEditingController();
 
+  bool _isEditing = false;
+
   @override
   void initState() {
     super.initState();
+    _loadUserData();
   }
 
   @override
@@ -31,11 +35,34 @@ class _MeusDadosState extends State<MeusDados> {
     super.dispose();
   }
 
-  void _salvarDados() {
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _nameController.text = prefs.getString('user_name') ?? '';
+      _emailController.text = prefs.getString('user_email') ?? '';
+      _cpfController.text = prefs.getString('user_cpf') ?? '';
+      _telefoneController.text = prefs.getString('user_phone') ?? '';
+    });
+  }
+
+  Future<void> _salvarDados() async {
     if (_formkey.currentState!.validate()) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_name', _nameController.text);
+      await prefs.setString('user_email', _emailController.text);
+      await prefs.setString('user_cpf', _cpfController.text);
+      await prefs.setString('user_phone', _telefoneController.text);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dados atualizados com sucesso!')),
+        const SnackBar(
+          backgroundColor: Colors.green,
+          content: Text('Dados atualizados com sucesso!'),
+        ),
       );
+
+      setState(() {
+        _isEditing = false;
+      });
     }
   }
 
@@ -64,6 +91,7 @@ class _MeusDadosState extends State<MeusDados> {
                   style: const TextStyle(fontSize: 20),
                   controller: _nameController,
                   decoration: inputEndereco('Nome', Icons.person),
+                  readOnly: !_isEditing,
                   validator: (String? value) {
                     if (value == null || value.isEmpty) {
                       return 'O nome não pode ser vazio';
@@ -77,6 +105,7 @@ class _MeusDadosState extends State<MeusDados> {
                   controller: _emailController,
                   decoration: inputEndereco('Email', Icons.email),
                   keyboardType: TextInputType.emailAddress,
+                  readOnly: !_isEditing,
                   validator: (String? value) {
                     if (value == null || value.isEmpty) {
                       return 'O email não pode ser vazio';
@@ -93,6 +122,8 @@ class _MeusDadosState extends State<MeusDados> {
                   controller: _cpfController,
                   decoration: inputEndereco('CPF', Icons.badge_outlined),
                   keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  readOnly: !_isEditing,
                   validator: (String? value) {
                     if (value == null || value.isEmpty) {
                       return 'O CPF não pode ser vazio';
@@ -109,6 +140,8 @@ class _MeusDadosState extends State<MeusDados> {
                   controller: _telefoneController,
                   decoration: inputEndereco('Telefone', Icons.phone),
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  readOnly: !_isEditing,
                   validator: (String? value) {
                     if (value == null || value.isEmpty) {
                       return 'O telefone não pode ser vazio';
@@ -126,8 +159,16 @@ class _MeusDadosState extends State<MeusDados> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _salvarDados,
-        child: const Icon(Icons.edit, color: Colors.white),
+        onPressed: () {
+          setState(() {
+            if (_isEditing) {
+              _salvarDados();
+            } else {
+              _isEditing = true;
+            }
+          });
+        },
+        child: Icon(_isEditing ? Icons.save : Icons.edit, color: Colors.white),
         backgroundColor: const Color.fromARGB(255, 214, 3, 158),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

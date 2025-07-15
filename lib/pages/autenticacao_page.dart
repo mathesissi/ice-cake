@@ -3,6 +3,7 @@ import 'package:doceria_app/widgets/input_decoration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AutenticacaoPage extends StatefulWidget {
   const AutenticacaoPage({super.key});
@@ -242,20 +243,69 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
     );
   }
 
-  void buttonPrincipal() {
+  Future<void> buttonPrincipal() async {
     if (!_formkey.currentState!.validate()) {
       return;
     }
 
-    if (!isLogin && !isChecked) {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (isLogin) {
+      final savedEmail = prefs.getString('user_email');
+      final savedPassword = prefs.getString('user_password');
+      final enteredEmail = _emailController.text;
+      final enteredPassword = _passwordController.text;
+
+      if (savedEmail == null || savedEmail.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.redAccent,
+            content: Text('Nenhum usuário registrado. Por favor, cadastre-se.'),
+          ),
+        );
+        return;
+      }
+
+      if (enteredEmail == savedEmail && enteredPassword == savedPassword) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.green,
+            content: Text('Login realizado com sucesso!'),
+          ),
+        );
+        GoRouter.of(context).go('/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.redAccent,
+            content: Text('E-mail ou senha incorretos.'),
+          ),
+        );
+      }
+    } else {
+      if (!isChecked) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.redAccent,
+            content: Text('Você precisa aceitar os termos para continuar.'),
+          ),
+        );
+        return;
+      }
+
+      await prefs.setString('user_name', _nameController.text);
+      await prefs.setString('user_email', _emailController.text);
+      await prefs.setString('user_password', _passwordController.text);
+      await prefs.setString('user_cpf', _cpfController.text);
+      await prefs.setString('user_phone', _telefoneController.text);
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          backgroundColor: Colors.redAccent,
-          content: Text('Você precisa aceitar os termos para continuar.'),
+          backgroundColor: Colors.green,
+          content: Text('Cadastro realizado com sucesso!'),
         ),
       );
-      return;
+      GoRouter.of(context).go('/home');
     }
-    GoRouter.of(context).go('/home');
   }
 }
