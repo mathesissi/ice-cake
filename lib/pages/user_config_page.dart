@@ -91,7 +91,7 @@ class _UserConfigPageState extends State<UserConfigPage> {
                   icon: Icons.location_on,
                   text: 'Meu endereço',
                   onTap: () {
-                    GoRouter.of(context).push('/user_config/meu_endereco');
+                    GoRouter.of(context).push('/user_config/meus_enderecos');
                   },
                 ),
                 ProfileMenuItem(

@@ -197,7 +197,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     IconButton(
                       onPressed:
-                          () => GoRouter.of(context).push('/home/user_config'),
+                          () => GoRouter.of(context).push('/user_config'),
                       icon: const Icon(
                         Icons.person,
                         size: 32,
