@@ -1,4 +1,3 @@
-import 'package:doceria_app/widgets/button_widget.dart';
 import 'package:doceria_app/widgets/input_decoration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -65,8 +64,10 @@ class _EnderecoState extends State<Endereco> {
       await prefs.setString('address_bairro', _bairroController.text);
       await prefs.setString('address_cidade', _cidadeController.text);
       await prefs.setString('address_estado', _estadoController.text);
-      await prefs.setString('address_complemento', _complementoController.text);
+      await prefs.setString(
+          'address_complemento', _complementoController.text);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Colors.green,

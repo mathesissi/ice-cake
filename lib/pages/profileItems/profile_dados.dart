@@ -53,6 +53,8 @@ class _MeusDadosState extends State<MeusDados> {
       await prefs.setString('user_cpf', _cpfController.text);
       await prefs.setString('user_phone', _telefoneController.text);
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Colors.green,

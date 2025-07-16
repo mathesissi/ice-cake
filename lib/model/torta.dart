@@ -10,14 +10,30 @@ class Torta extends Produto {
     required double preco,
     required this.categoria,
     required this.peso,
-  }) : super(nome, descricao, preco);
+  }) : super(nome, descricao, preco, 'Torta');
+
+  @override
+  Map<String, dynamic> toJson() {
+    final json = super.toJson();
+    json.addAll({
+      'categoria': categoria,
+      'peso': peso,
+    });
+    return json;
+  }
+
+  factory Torta.fromJson(Map<String, dynamic> json) {
+    return Torta(
+      nome: json['nome'],
+      descricao: json['descricao'],
+      preco: json['preco'],
+      categoria: json['categoria'],
+      peso: json['peso'],
+    );
+  }
 
   @override
   void exibirDetalhes() {
-    print('Torta: $nome');
-    print('Descrição: $descricao');
-    print('Preço: R\$ $preco');
-    print('Categoria: $categoria');
-    print('Peso: $peso kg');
+    print('Torta: $nome, Categoria: $categoria, Peso: ${peso}kg');
   }
 }
