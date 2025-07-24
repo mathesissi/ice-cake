@@ -2,6 +2,8 @@ import 'package:doceria_app/widgets/profile_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:doceria_app/model/usuario.dart';
+import 'package:doceria_app/repository/usuario_repository.dart';
 
 class UserConfigPage extends StatefulWidget {
   const UserConfigPage({super.key});
@@ -11,18 +13,51 @@ class UserConfigPage extends StatefulWidget {
 }
 
 class _UserConfigPageState extends State<UserConfigPage> {
-  String _userName = 'Nome do Usuário';
+  String _userName = 'Carregando...';
+
+  final UsuarioRepository _usuarioRepository = UsuarioRepository();
+
   @override
   void initState() {
     super.initState();
-    _loadUserName();
+    _loadUserData();
   }
 
-  Future<void> _loadUserName() async {
+  Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userName = prefs.getString('user_name') ?? 'Usuário';
-    });
+    final currentUserEmail = prefs.getString('current_user_email');
+
+    if (currentUserEmail != null && currentUserEmail.isNotEmpty) {
+      try {
+        final Usuario? user = await _usuarioRepository.getByEmail(
+          currentUserEmail,
+        );
+
+        if (user != null) {
+          setState(() {
+            _userName = user.nome;
+          });
+        } else {
+          setState(() {
+            _userName = 'Usuário não encontrado';
+          });
+        }
+      } catch (e) {
+        setState(() {
+          _userName = 'Erro ao carregar nome';
+        });
+      }
+    } else {
+      setState(() {
+        _userName = 'Visitante';
+      });
+    }
+  }
+
+  Future<void> _loggout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', false);
+    await prefs.remove('current_user_email');
   }
 
   String _getFirstLetter(String name) {
@@ -60,7 +95,6 @@ class _UserConfigPageState extends State<UserConfigPage> {
                 child: CircleAvatar(
                   radius: 90,
                   backgroundColor: Colors.deepPurple,
-
                   child: Text(
                     _getFirstLetter(_userName),
                     style: const TextStyle(
@@ -74,7 +108,6 @@ class _UserConfigPageState extends State<UserConfigPage> {
             ],
           ),
           const SizedBox(height: 80),
-
           Text(_userName, style: const TextStyle(fontSize: 50)),
           Expanded(
             child: ListView(
@@ -104,8 +137,11 @@ class _UserConfigPageState extends State<UserConfigPage> {
                 ProfileMenuItem(
                   icon: Icons.login_outlined,
                   text: 'Sair',
-                  onTap: () {
-                    GoRouter.of(context).go('/autenticacao');
+                  onTap: () async {
+                    await _loggout();
+                    if (context.mounted) {
+                      GoRouter.of(context).go('/autenticacao');
+                    }
                   },
                 ),
               ],

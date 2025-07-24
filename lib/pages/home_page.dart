@@ -1,13 +1,12 @@
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'package:doceria_app/model/bolo.dart';
 import 'package:doceria_app/model/item_carrinho.dart';
 import 'package:doceria_app/model/produto.dart';
-import 'package:doceria_app/model/sorvete.dart';
-import 'package:doceria_app/model/torta.dart';
 import 'package:doceria_app/widgets/carrossel_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:carousel_slider/carousel_slider.dart'; // Certifique-se de importar este também para CarouselController
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:doceria_app/repository/produto_repository.dart';
+import 'package:doceria_app/repository/usuario_repository.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,142 +16,94 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final ProdutoRepository _produtoRepository = ProdutoRepository();
+  final UsuarioRepository _usuarioRepository = UsuarioRepository();
+
+  Future<bool> verificarLogin(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+    if (!isLoggedIn) {
+      GoRouter.of(context).go('/autenticacao');
+      return false;
+    }
+
+    return true;
+  }
+
   int _currentIndex = 0;
   List<Produto> _produtos = [];
-  List<ItemCarrinho> _carrinho = [];
-  // 1. Cria uma instância do CarouselController
-  final CarouselController _carouselController =
-      CarouselController(); // Linha adicionada/corrigida aqui
+  final List<ItemCarrinho> _carrinho = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _updateProdutos();
+    _carregarProdutosDoBanco();
+  }
+
+  Future<void> _carregarProdutosDoBanco() async {
+    setState(() {
+      _isLoading = true;
+      _produtos = [];
+    });
+    try {
+      List<Produto> todosOsProdutos = await _produtoRepository.getAll();
+
+      String tipoDesejado;
+      switch (_currentIndex) {
+        case 0:
+          tipoDesejado = 'bolo';
+          break;
+        case 1:
+          tipoDesejado = 'torta';
+          break;
+          break;
+        case 2:
+          tipoDesejado = 'sorvete';
+          break;
+        default:
+          tipoDesejado = '';
+      }
+
+      setState(() {
+        _produtos =
+            todosOsProdutos.where((p) => p.tipo == tipoDesejado).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Erro ao carregar produtos do banco de dados: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Colors.redAccent,
+          content: Text('Erro ao carregar produtos.'),
+        ),
+      );
+    }
   }
 
   void _updateProdutos() {
-    setState(() {
-      switch (_currentIndex) {
-        case 0:
-          _produtos = [
-            Bolo(
-              nome: 'Bolo de Chocolate com Brigadeiro',
-              descricao: 'Massa fofinha de chocolate com cobertura gourmet.',
-              preco: 68,
-              categoria: 'Comum',
-              pedacos: 12,
-            ),
-            Bolo(
-              nome: 'Bolo de Leite Ninho com Morango',
-              descricao:
-                  'Camadas de creme de leite Ninho com morangos frescos.',
-              preco: 75,
-              categoria: 'Comum',
-              pedacos: 12,
-            ),
-            Bolo(
-              nome: 'Bolo de Cenoura com Chocolate',
-              descricao:
-                  'Clássico brasileiro com cobertura de brigadeiro caseiro.',
-              preco: 60,
-              categoria: 'Comum',
-              pedacos: 12,
-            ),
-          ];
-          break;
-        case 1:
-          _produtos = [
-            Torta(
-              nome: 'Torta de Morango com Chantilly',
-              descricao: 'Recheio cremoso e cobertura generosa de morangos.',
-              preco: 68,
-              categoria: 'Doce',
-              peso: 1.2,
-            ),
-            Torta(
-              nome: 'Torta de Chocolate Belga',
-              descricao: '70% cacau com recheio trufado e ganache.',
-              preco: 72,
-              categoria: 'Doce',
-              peso: 1.3,
-            ),
-            Torta(
-              nome: 'Torta Holandesa',
-              descricao:
-                  'Base crocante com creme branco e cobertura de chocolate meio amargo.',
-              preco: 75,
-              categoria: 'Doce',
-              peso: 1.5,
-            ),
-          ];
-          break;
-        case 2:
-          _produtos = [
-            Sorvete(
-              nome: 'Sorvete de Pistache Premium',
-              descricao: 'Com pasta natural de pistache. Sabor sofisticado.',
-              preco: 9,
-              sabor: 'Pistache',
-              mlTamanho: '100',
-            ),
-            Sorvete(
-              nome: 'Sorvete de Doce de Leite com Nozes',
-              descricao:
-                  'Pedaços crocantes de nozes e doce de leite argentino.',
-              preco: 7,
-              sabor: 'Doce de Leite',
-              mlTamanho: '100',
-            ),
-            Sorvete(
-              nome: 'Sorvete de Chocolate Intenso',
-              descricao:
-                  'Feito com chocolate nobre, textura cremosa e sabor marcante.',
-              preco: 7,
-              sabor: 'Chocolate',
-              mlTamanho: '100',
-            ),
-          ];
-          break;
-        default:
-          _produtos = [];
-      }
-    });
+    _carregarProdutosDoBanco();
   }
 
-  // Mapeia o índice do produto na lista atual para o índice da imagem no carrossel global.
-  // IMPORTANTE: Esta lógica depende diretamente da ordem das imagens em imgList no CarrosselWidget
-  // e da ordem dos produtos em _produtos. Mantenha-os sincronizados.
-  int _mapProductIndexToCarouselIndex(int productListIndex) {
-    int baseIndex = 0;
-    switch (_currentIndex) {
-      case 0: // Bolos: Imagens 0, 1, 2
-        baseIndex = 0;
-        break;
-      case 1: // Tortas: Imagens 3, 4, 5
-        baseIndex = 3;
-        break;
-      case 2: // Sorvetes: Imagens 6, 7, 8
-        baseIndex = 6;
-        break;
-    }
-    return baseIndex + productListIndex;
-  }
-
-  void _adicionarAoCarrinho(Produto produto) {
+  void _adicionarAoCarrinho(Produto produto, [int quantidade = 1]) {
     setState(() {
       final index = _carrinho.indexWhere(
-        (item) => item.produto.nome == produto.nome,
+        (item) => item.produto.id == produto.id,
       );
       if (index >= 0) {
-        _carrinho[index].quantidade++;
+        _carrinho[index].quantidade += quantidade;
       } else {
-        _carrinho.add(ItemCarrinho(produto: produto, quantidade: 1));
+        _carrinho.add(ItemCarrinho(produto: produto, quantidade: quantidade));
       }
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${produto.nome} adicionado ao carrinho!'),
+        content: Text('${quantidade}x ${produto.nome} adicionado ao carrinho!'),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),
@@ -172,7 +123,7 @@ class _HomePageState extends State<HomePage> {
             ? 'BOLOS ARTESANAIS'
             : _currentIndex == 1
             ? 'TORTAS ARTESANAIS'
-            : 'SORVETES GOURMET (100g)'; // Corrigi o texto para 100g aqui também
+            : 'SORVETES GOURMET (100g)';
 
     final emoji =
         _currentIndex == 0
@@ -196,25 +147,28 @@ class _HomePageState extends State<HomePage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      onPressed:
-                          () => GoRouter.of(context).push('/home/user_config'),
+                      onPressed: () async {
+                        if (!await verificarLogin(context)) return;
+                        GoRouter.of(context).push('/home/user_config');
+                      },
                       icon: const Icon(
                         Icons.person,
                         size: 32,
-                        color: Color(0xFF4B2753),
+                        color: Color.fromARGB(255, 105, 88, 109),
                       ),
                     ),
                     Stack(
                       children: [
                         IconButton.filled(
-                          onPressed: () {
+                          onPressed: () async {
+                            if (!await verificarLogin(context)) return;
                             GoRouter.of(
                               context,
                             ).push('/home/carrinho', extra: _carrinho);
                           },
                           icon: const Icon(Icons.shopping_cart),
                           style: IconButton.styleFrom(
-                            backgroundColor: Color(0xFFF68CDF),
+                            backgroundColor: const Color(0xFFF68CDF),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.all(16),
                           ),
@@ -245,10 +199,8 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               const SizedBox(height: 10),
-              // 2. Passa o controller para o CarrosselWidget
-              CarrosselWidget(
-                carouselController: _carouselController,
-              ), // Linha corrigida aqui
+
+              CarrosselWidget(),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -270,75 +222,92 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _produtos.length,
-                  itemBuilder: (context, index) {
-                    final produto = _produtos[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.add_circle_outline,
-                              color: Color(0xFF4B2753),
-                              size: 28,
-                            ),
-                            onPressed: () => _adicionarAoCarrinho(produto),
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _produtos.isEmpty
+                        ? const Center(
+                          child: Text(
+                            'Nenhum produto encontrado para esta categoria.',
+                            style: TextStyle(fontSize: 20, color: Colors.grey),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 3. Usa TextButton ou GestureDetector para o título
-                                TextButton(
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    alignment: Alignment.centerLeft,
+                        )
+                        : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _produtos.length,
+                          itemBuilder: (context, index) {
+                            final produto = _produtos[index];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8.0,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.add_circle_outline,
+                                      color: Color(0xFF4B2753),
+                                      size: 28,
+                                    ),
+                                    onPressed:
+                                        () => _adicionarAoCarrinho(produto),
                                   ),
-                                  onPressed: () {
-                                    // Mapeia o índice do produto para o índice da imagem no carrossel
-                                    final carouselIndex =
-                                        _mapProductIndexToCarouselIndex(index);
-                                  },
-                                  child: Text(
-                                    produto.nome,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 30,
-                                      color:
-                                          Colors.black, // Cor do texto do botão
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        TextButton(
+                                          style: TextButton.styleFrom(
+                                            padding: EdgeInsets.zero,
+                                            alignment: Alignment.centerLeft,
+                                          ),
+                                          onPressed: () {
+                                            GoRouter.of(context).push(
+                                              '/produto_detalhe',
+                                              extra: {
+                                                'produto': produto,
+                                                'onAddToCart':
+                                                    _adicionarAoCarrinho,
+                                              },
+                                            );
+                                          },
+                                          child: Text(
+                                            produto.nome,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 30,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          produto.descricao,
+                                          style: const TextStyle(
+                                            fontSize: 26,
+                                            color: Color(0xFF4B4B4B),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  produto.descricao,
-                                  style: const TextStyle(
-                                    fontSize: 26,
-                                    color: Color(0xFF4B4B4B),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'R\$ ${produto.preco.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 30,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'R\$ ${produto.preco.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
               ),
             ],
           ),

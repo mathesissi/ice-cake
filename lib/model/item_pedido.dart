@@ -1,17 +1,35 @@
-import 'item_carrinho.dart';
+class ItemPedido {
+  int? id;
+  String pedidoId;
+  String produtoId;
+  int quantidade;
+  double precoUnitario;
 
-class Pedido {
-  final DateTime data;
-  final List<ItemCarrinho> itens;
-  final String formaPagamento;
-  final double total;
-  final String status;
-
-  Pedido({
-    required this.data,
-    required this.itens,
-    required this.formaPagamento,
-    required this.total,
-    this.status = 'Finalizado',
+  ItemPedido({
+    this.id,
+    required this.pedidoId,
+    required this.produtoId,
+    required this.quantidade,
+    required this.precoUnitario,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'pedido_id': pedidoId,
+      'produto_id': produtoId,
+      'quantidade': quantidade,
+      'preco_unitario': precoUnitario,
+    };
+  }
+
+  factory ItemPedido.fromMap(Map<String, dynamic> map) {
+    return ItemPedido(
+      id: map['id'],
+      pedidoId: map['pedido_id'],
+      produtoId: map['produto_id'],
+      quantidade: map['quantidade'],
+      precoUnitario: map['preco_unitario'],
+    );
+  }
 }

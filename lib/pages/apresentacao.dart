@@ -10,15 +10,7 @@ class Apresentacao extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: Text(
-          'Ice&Cake',
-          style: TextStyle(
-            fontSize: 45,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'league_gothic',
-            color: Color(0xFF963484),
-          ),
-        ),
+        title: Text('Ice&Cake', style: TextStyle(fontSize: 45)),
       ),
       body: SafeArea(
         child: Center(
@@ -43,7 +35,7 @@ class Apresentacao extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Text(
-                  'Seja bem-vindo à doceria_app – aqui o sabor é especial como você.',
+                  'Seja bem-vindo ao Ice&Cake aqui o sabor é especial como você.',
                   style: TextStyle(
                     color: Color(0xFF750073),
                     fontSize: 30,
@@ -55,7 +47,7 @@ class Apresentacao extends StatelessWidget {
               const SizedBox(height: 70),
               ButtonPadrao(
                 text: 'Começar',
-                onPressed: () => GoRouter.of(context).push('/onboarding'),
+                onPressed: () => GoRouter.of(context).go('/onboarding'),
               ),
               const SizedBox(height: 70),
             ],

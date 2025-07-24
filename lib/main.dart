@@ -1,23 +1,31 @@
-import 'package:doceria_app/pages/apresentacao.dart';
-import 'package:doceria_app/pages/home_page.dart';
-import 'package:doceria_app/pages/autenticacao_page.dart';
-import 'package:doceria_app/pages/onboarding/onboarding_home.dart';
 import 'package:doceria_app/routers/router.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:doceria_app/database/db.dart';
+import 'package:doceria_app/repository/produto_repository.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await DB.instance.database;
+  await ProdutoRepository().seedProducts();
+
+  final prefs = await SharedPreferences.getInstance();
+  final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+
+  runApp(MyApp(initialRoute: hasSeenOnboarding ? '/autenticacao' : '/'));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String initialRoute;
+  const MyApp({super.key, required this.initialRoute});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'ice&cake',
       theme: ThemeData(
         fontFamily: 'Dongle',
-        appBarTheme: AppBarTheme(
+        appBarTheme: const AppBarTheme(
           titleTextStyle: TextStyle(
             color: Color(0xFF963484),
             fontSize: 35,
@@ -25,9 +33,8 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      routerDelegate: routes.routerDelegate,
-      routeInformationParser: routes.routeInformationParser,
-      routeInformationProvider: routes.routeInformationProvider,
+
+      routerConfig: router,
     );
   }
 }

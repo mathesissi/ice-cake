@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:doceria_app/model/usuario.dart';
+import 'package:doceria_app/repository/usuario_repository.dart';
 
 class AutenticacaoPage extends StatefulWidget {
   const AutenticacaoPage({super.key});
@@ -24,6 +26,8 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
   final _confirmPasswordController = TextEditingController();
   final _cpfController = TextEditingController();
   final _telefoneController = TextEditingController();
+
+  final UsuarioRepository _usuarioRepository = UsuarioRepository();
 
   @override
   void dispose() {
@@ -141,7 +145,6 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 20),
                       TextFormField(
                         style: const TextStyle(fontSize: 25),
@@ -222,7 +225,6 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
                           buttonPrincipal();
                         },
                       ),
-
                       const SizedBox(height: 20),
                       ButtonAlternativo(
                         onPressed: () {
@@ -251,34 +253,37 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
     final prefs = await SharedPreferences.getInstance();
 
     if (isLogin) {
-      final savedEmail = prefs.getString('user_email');
-      final savedPassword = prefs.getString('user_password');
       final enteredEmail = _emailController.text;
       final enteredPassword = _passwordController.text;
 
-      if (savedEmail == null || savedEmail.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.redAccent,
-            content: Text('Nenhum usuário registrado. Por favor, cadastre-se.'),
-          ),
-        );
-        return;
-      }
+      try {
+        final Usuario? user = await _usuarioRepository.getByEmail(enteredEmail);
 
-      if (enteredEmail == savedEmail && enteredPassword == savedPassword) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('Login realizado com sucesso!'),
-          ),
-        );
-        GoRouter.of(context).go('/home');
-      } else {
+        if (user != null && user.senha == enteredPassword) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Colors.green,
+              content: Text('Login realizado com sucesso!'),
+            ),
+          );
+          await prefs.setBool('isLoggedIn', true);
+
+          await prefs.setString('current_user_email', user.email);
+          GoRouter.of(context).go('/home');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Colors.redAccent,
+              content: Text('E-mail ou senha incorretos.'),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Erro durante o login: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: Colors.redAccent,
-            content: Text('E-mail ou senha incorretos.'),
+            content: Text('Ocorreu um erro ao tentar fazer login.'),
           ),
         );
       }
@@ -293,19 +298,65 @@ class _AutenticacaoPageState extends State<AutenticacaoPage> {
         return;
       }
 
-      await prefs.setString('user_name', _nameController.text);
-      await prefs.setString('user_email', _emailController.text);
-      await prefs.setString('user_password', _passwordController.text);
-      await prefs.setString('user_cpf', _cpfController.text);
-      await prefs.setString('user_phone', _telefoneController.text);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.green,
-          content: Text('Cadastro realizado com sucesso!'),
-        ),
+      final newUsuario = Usuario(
+        nome: _nameController.text,
+        email: _emailController.text,
+        senha: _passwordController.text,
+        cpf: int.parse(_cpfController.text),
+        telefone:
+            _telefoneController.text.isEmpty ? null : _telefoneController.text,
+        dataCadastro: DateTime.now().toIso8601String(),
       );
-      GoRouter.of(context).go('/home');
+
+      try {
+        final existingUser = await _usuarioRepository.getByEmail(
+          newUsuario.email,
+        );
+        if (existingUser != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Colors.redAccent,
+              content: Text('Este e-mail já está cadastrado.'),
+            ),
+          );
+          return;
+        }
+        final existingCpfUser = await _usuarioRepository.getByCpf(
+          newUsuario.cpf.toString(),
+        );
+        if (existingCpfUser != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Colors.redAccent,
+              content: Text('Este CPF já está cadastrado.'),
+            ),
+          );
+          return;
+        }
+
+        int id = await _usuarioRepository.insert(newUsuario);
+
+        print('Usuário cadastrado com sucesso! ID: $id');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.green,
+            content: Text('Cadastro realizado com sucesso!'),
+          ),
+        );
+        await prefs.setBool('isLoggedIn', true);
+        await prefs.setString('current_user_email', newUsuario.email);
+
+        GoRouter.of(context).go('/home');
+      } catch (e) {
+        print('Erro durante o cadastro: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.redAccent,
+            content: Text('Ocorreu um erro ao tentar cadastrar.'),
+          ),
+        );
+      }
     }
   }
 }

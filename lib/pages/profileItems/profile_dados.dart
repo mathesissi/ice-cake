@@ -2,6 +2,9 @@ import 'package:doceria_app/widgets/input_decoration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
+import 'package:doceria_app/model/usuario.dart';
+import 'package:doceria_app/repository/usuario_repository.dart';
 
 class MeusDados extends StatefulWidget {
   const MeusDados({super.key});
@@ -19,6 +22,8 @@ class _MeusDadosState extends State<MeusDados> {
   final _telefoneController = TextEditingController();
 
   bool _isEditing = false;
+  Usuario? _currentUser;
+  final UsuarioRepository _usuarioRepository = UsuarioRepository();
 
   @override
   void initState() {
@@ -37,32 +42,170 @@ class _MeusDadosState extends State<MeusDados> {
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _nameController.text = prefs.getString('user_name') ?? '';
-      _emailController.text = prefs.getString('user_email') ?? '';
-      _cpfController.text = prefs.getString('user_cpf') ?? '';
-      _telefoneController.text = prefs.getString('user_phone') ?? '';
-    });
+
+    final currentUserEmail = prefs.getString('current_user_email');
+
+    if (currentUserEmail != null && currentUserEmail.isNotEmpty) {
+      try {
+        final Usuario? user = await _usuarioRepository.getByEmail(
+          currentUserEmail,
+        );
+        if (user != null) {
+          setState(() {
+            _currentUser = user;
+            _nameController.text = user.nome;
+            _emailController.text = user.email;
+
+            _cpfController.text = user.cpf.toString();
+
+            _telefoneController.text = user.telefone ?? '';
+          });
+        } else {
+          _showSnackBar(
+            'Usuário não encontrado no banco de dados.',
+            Colors.redAccent,
+          );
+          _loggoutAndRedirect();
+        }
+      } catch (e) {
+        print('Erro ao carregar dados do usuário: $e');
+        _showSnackBar('Erro ao carregar seus dados.', Colors.redAccent);
+        _loggoutAndRedirect();
+      }
+    } else {
+      _loggoutAndRedirect();
+    }
   }
 
   Future<void> _salvarDados() async {
-    if (_formkey.currentState!.validate()) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_name', _nameController.text);
-      await prefs.setString('user_email', _emailController.text);
-      await prefs.setString('user_cpf', _cpfController.text);
-      await prefs.setString('user_phone', _telefoneController.text);
+    if (!_formkey.currentState!.validate() || _currentUser == null) {
+      return;
+    }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.green,
-          content: Text('Dados atualizados com sucesso!'),
-        ),
+    try {
+      final updatedUser = Usuario(
+        id: _currentUser!.id,
+        nome: _nameController.text,
+        email: _emailController.text,
+        senha: _currentUser!.senha,
+        cpf: int.parse(_cpfController.text),
+        telefone:
+            _telefoneController.text.isEmpty ? null : _telefoneController.text,
+        dataCadastro: _currentUser!.dataCadastro,
       );
 
-      setState(() {
-        _isEditing = false;
-      });
+      if (updatedUser.email != _currentUser!.email) {
+        final existingUser = await _usuarioRepository.getByEmail(
+          updatedUser.email,
+        );
+
+        if (existingUser != null && existingUser.id != updatedUser.id) {
+          _showSnackBar(
+            'Este e-mail já está em uso por outro usuário.',
+            Colors.redAccent,
+          );
+          return;
+        }
+      }
+
+      int linhasAfetadas = await _usuarioRepository.update(updatedUser);
+      if (linhasAfetadas > 0) {
+        _showSnackBar('Dados atualizados com sucesso!', Colors.green);
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('current_user_email', updatedUser.email);
+
+        setState(() {
+          _isEditing = false;
+          _currentUser = updatedUser;
+        });
+      } else {
+        _showSnackBar(
+          'Nenhuma alteração detectada ou erro ao atualizar.',
+          Colors.orange,
+        );
+      }
+    } catch (e) {
+      print('Erro ao salvar dados: $e');
+      _showSnackBar('Ocorreu um erro ao salvar os dados.', Colors.redAccent);
+    }
+  }
+
+  Future<void> _excluirUsuario() async {
+    if (_currentUser == null || _currentUser!.id == null) {
+      _showSnackBar('Nenhum usuário para excluir.', Colors.redAccent);
+      return;
+    }
+
+    bool confirm =
+        await showDialog(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: const Text('Confirmar Exclusão'),
+              content: const Text(
+                'Tem certeza que deseja excluir sua conta? Esta ação é irreversível.',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(false);
+                  },
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(true);
+                  },
+                  child: const Text(
+                    'Excluir',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (confirm) {
+      try {
+        int linhasAfetadas = await _usuarioRepository.delete(_currentUser!.id!);
+        if (linhasAfetadas > 0) {
+          _showSnackBar('Sua conta foi excluída com sucesso.', Colors.green);
+          await _loggoutAndRedirect();
+        } else {
+          _showSnackBar(
+            'Erro ao excluir conta ou usuário não encontrado.',
+            Colors.redAccent,
+          );
+        }
+      } catch (e) {
+        print('Erro ao excluir usuário: $e');
+        _showSnackBar(
+          'Ocorreu um erro ao excluir sua conta.',
+          Colors.redAccent,
+        );
+      }
+    }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: color,
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _loggoutAndRedirect() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', false);
+    await prefs.remove('current_user_email');
+    if (context.mounted) {
+      GoRouter.of(context).go('/autenticacao');
     }
   }
 
@@ -79,6 +222,14 @@ class _MeusDadosState extends State<MeusDados> {
           fontSize: 24,
           fontWeight: FontWeight.bold,
         ),
+        actions: [
+          if (_currentUser != null && _currentUser!.id != null)
+            IconButton(
+              icon: const Icon(Icons.delete_forever, color: Colors.red),
+              onPressed: _excluirUsuario,
+              tooltip: 'Excluir Conta',
+            ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

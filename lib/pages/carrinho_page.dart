@@ -1,8 +1,14 @@
 import 'package:doceria_app/model/item_carrinho.dart';
-import 'package:doceria_app/model/item_pedido.dart';
+import 'package:doceria_app/model/pedido.dart';
+import 'package:doceria_app/model/endereco.dart';
 import 'package:flutter/material.dart';
 import 'package:doceria_app/widgets/button_widget.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Importar shared_preferences
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:doceria_app/repository/endereco_repository.dart';
+import 'package:doceria_app/repository/pedido_repository.dart';
+import 'package:doceria_app/repository/usuario_repository.dart';
+import 'package:doceria_app/model/status.dart';
 
 class Carrinho extends StatefulWidget {
   final List<ItemCarrinho> carrinho;
@@ -16,36 +22,167 @@ class Carrinho extends StatefulWidget {
 class _CarrinhoState extends State<Carrinho> {
   String _formaPagamento = 'Pix';
 
-  // Variáveis de estado para o endereço
-  String _cep = '';
-  String _rua = '';
-  String _numero = '';
-  String _bairro = '';
-  String _cidade = '';
-  String _estado = '';
-  String _complemento = '';
+  Endereco? _selectedAddress;
 
-  // Esta lista pedidosHistorico não é mais necessária aqui se você a gerencia globalmente/persistentemente
-  // final List<Pedido> pedidosHistorico = [];
+  final EnderecoRepository _enderecoRepository = EnderecoRepository();
+  final PedidoRepository _pedidoRepository = PedidoRepository();
+  final UsuarioRepository _usuarioRepository = UsuarioRepository();
+
+  int? _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    _loadAddressData(); // Carrega os dados do endereço ao iniciar a tela
+    _carregarIdUsuarioAtual().then((_) {
+      if (_currentUserId != null) {
+        _carregarDadosEndereco();
+      }
+    });
   }
 
-  // Função para carregar os dados do endereço do SharedPreferences
-  Future<void> _loadAddressData() async {
+  Future<void> _carregarIdUsuarioAtual() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _cep = prefs.getString('address_cep') ?? 'Não informado';
-      _rua = prefs.getString('address_rua') ?? 'Não informado';
-      _numero = prefs.getString('address_numero') ?? 'N/A';
-      _bairro = prefs.getString('address_bairro') ?? 'Não informado';
-      _cidade = prefs.getString('address_cidade') ?? 'Não informado';
-      _estado = prefs.getString('address_estado') ?? 'N/A';
-      _complemento = prefs.getString('address_complemento') ?? '';
-    });
+    final currentUserEmail = prefs.getString('current_user_email');
+    if (currentUserEmail != null) {
+      final user = await _usuarioRepository.getByEmail(currentUserEmail);
+      setState(() {
+        _currentUserId = user?.id;
+      });
+    }
+  }
+
+  Future<void> _carregarDadosEndereco() async {
+    if (_currentUserId == null) {
+      _exibirSnackBar(
+        'Usuário não logado. Faça login para ver endereços.',
+        Colors.redAccent,
+      );
+      return;
+    }
+    try {
+      final List<Endereco> addresses = await _enderecoRepository.getByUserId(
+        _currentUserId!,
+      );
+
+      setState(() {
+        if (_selectedAddress != null &&
+            addresses.any((addr) => addr.id == _selectedAddress!.id)) {
+          _selectedAddress = addresses.firstWhere(
+            (addr) => addr.id == _selectedAddress!.id,
+          );
+        } else if (addresses.isNotEmpty) {
+          _selectedAddress = addresses.first;
+        } else {
+          _selectedAddress = null;
+        }
+      });
+    } catch (e) {
+      print('Erro ao carregar endereço de entrega: $e');
+      _exibirSnackBar(
+        'Erro ao carregar endereço de entrega.',
+        Colors.redAccent,
+      );
+    }
+  }
+
+  Future<void> _mostrarModalSelecaoEndereco() async {
+    if (_currentUserId == null) {
+      _exibirSnackBar(
+        'Você precisa estar logado para selecionar um endereço.',
+        Colors.redAccent,
+      );
+      return;
+    }
+
+    List<Endereco> userAddresses = await _enderecoRepository.getByUserId(
+      _currentUserId!,
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          height: MediaQuery.of(context).size.height * 0.75,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Selecione um Endereço',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.add_circle_outline,
+                      size: 30,
+                      color: Color(0xFF963484),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      GoRouter.of(
+                        context,
+                      ).push('/user_config/meu_endereco').then((_) {
+                        _carregarDadosEndereco();
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const Divider(),
+              if (userAddresses.isEmpty)
+                const Expanded(
+                  child: Center(
+                    child: Text('Nenhum endereço cadastrado. Adicione um!'),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: userAddresses.length,
+                    itemBuilder: (context, index) {
+                      final address = userAddresses[index];
+                      return Card(
+                        color:
+                            _selectedAddress?.id == address.id
+                                ? const Color(0xFFF3EDF7)
+                                : null,
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: ListTile(
+                          title: Text(
+                            '${address.rua}, ${address.numero}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            '${address.bairro}, ${address.cidade} - ${address.estado}',
+                          ),
+                          trailing:
+                              _selectedAddress?.id == address.id
+                                  ? const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                  )
+                                  : null,
+                          onTap: () {
+                            setState(() {
+                              _selectedAddress = address;
+                            });
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   double get total => widget.carrinho.fold(
@@ -53,13 +190,13 @@ class _CarrinhoState extends State<Carrinho> {
     (soma, item) => soma + (item.produto.preco * item.quantidade),
   );
 
-  void _incrementar(ItemCarrinho item) {
+  void _incrementarQuantidade(ItemCarrinho item) {
     setState(() {
       item.quantidade++;
     });
   }
 
-  void _decrementar(ItemCarrinho item) {
+  void _decrementarQuantidade(ItemCarrinho item) {
     setState(() {
       if (item.quantidade > 1) {
         item.quantidade--;
@@ -69,38 +206,66 @@ class _CarrinhoState extends State<Carrinho> {
     });
   }
 
-  void _finalizarPedido() {
-    // 1. Impedir a finalização de um pedido vazio
+  Future<void> _finalizarPedido() async {
     if (widget.carrinho.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.redAccent,
-          content: Text(
-            "Seu carrinho está vazio. Adicione itens para finalizar o pedido.",
-          ),
-        ),
+      _exibirSnackBar(
+        "Seu carrinho está vazio. Adicione itens para finalizar o pedido.",
+        Colors.redAccent,
       );
-      return; // Interrompe a função se o carrinho estiver vazio
+      return;
     }
 
-    final pedido = Pedido(
-      data: DateTime.now(),
-      itens: List.from(widget.carrinho), // Cria uma cópia da lista de itens
-      formaPagamento: _formaPagamento,
-      total: total,
-    );
+    if (_currentUserId == null) {
+      _exibirSnackBar(
+        'Você precisa estar logado para finalizar um pedido.',
+        Colors.redAccent,
+      );
+      GoRouter.of(context).go('/autenticacao');
+      return;
+    }
 
-    // Em um cenário real, você adicionaria este pedido a uma lista persistente (global/local storage)
-    // ou enviaria para um servidor.
-    // Exemplo (se você usar pedidosHistoricoGlobal como discutimos anteriormente):
-    // pedidosHistoricoGlobal.add(pedido);
+    if (_selectedAddress == null) {
+      _exibirSnackBar('Selecione um endereço de entrega.', Colors.redAccent);
+      _mostrarModalSelecaoEndereco();
+      return;
+    }
 
-    setState(() {
-      widget.carrinho.clear(); // Limpa o carrinho após finalizar
-    });
+    try {
+      final pedido = Pedido(
+        userId: _currentUserId!,
+        data: DateTime.now(),
+        itens: List.from(widget.carrinho),
+        formaPagamento: _formaPagamento,
+        total: total,
+        status: StatusPedido.emPreparacao,
+      );
 
+      await _pedidoRepository.insert(pedido);
+
+      setState(() {
+        widget.carrinho.clear();
+      });
+
+      _exibirSnackBar("Pedido realizad com sucesso!", Colors.green);
+      if (context.mounted) {
+        GoRouter.of(context).go('/home');
+      }
+    } catch (e) {
+      print('Erro ao realizae pedido: $e');
+      _exibirSnackBar(
+        "Erro ao realizar pedido. Tente novamente.",
+        Colors.redAccent,
+      );
+    }
+  }
+
+  void _exibirSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Pedido finalizado com sucesso!")),
+      SnackBar(
+        backgroundColor: color,
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -148,7 +313,6 @@ class _CarrinhoState extends State<Carrinho> {
                         style: TextStyle(fontSize: 22),
                       )
                     else
-                      // Exibe os itens do carrinho
                       ...widget.carrinho.map((item) {
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -175,13 +339,17 @@ class _CarrinhoState extends State<Carrinho> {
                                           icon: const Icon(
                                             Icons.remove_circle_outline,
                                           ),
-                                          onPressed: () => _decrementar(item),
+                                          onPressed:
+                                              () =>
+                                                  _decrementarQuantidade(item),
                                         ),
                                         IconButton(
                                           icon: const Icon(
                                             Icons.add_circle_outline,
                                           ),
-                                          onPressed: () => _incrementar(item),
+                                          onPressed:
+                                              () =>
+                                                  _incrementarQuantidade(item),
                                         ),
                                         IconButton(
                                           icon: const Icon(
@@ -206,7 +374,6 @@ class _CarrinhoState extends State<Carrinho> {
                           ),
                         );
                       }).toList(),
-                    // Exibe o total apenas se o carrinho não estiver vazio
                     if (widget.carrinho.isNotEmpty) ...[
                       const Divider(),
                       Row(
@@ -235,18 +402,33 @@ class _CarrinhoState extends State<Carrinho> {
               ),
 
               const SizedBox(height: 20),
-              // 2. Campo com o endereço salvo
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Endereço de Entrega',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Endereço de Entrega',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _mostrarModalSelecaoEndereco(),
+                          child: const Text(
+                            'Mudar Endereço',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF963484),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Container(
@@ -256,51 +438,69 @@ class _CarrinhoState extends State<Carrinho> {
                         color: const Color(0xFFF3EDF7),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Rua: $_rua, $_numero',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                          Text(
-                            'Bairro: $_bairro',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                          Text(
-                            'Cidade: $_cidade - $_estado',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                          Text(
-                            'CEP: $_cep',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                          if (_complemento.isNotEmpty)
-                            Text(
-                              'Complemento: $_complemento',
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          // Navegar para a tela de edição de endereço
-                          Navigator.of(
-                            context,
-                          ).pushNamed('/user_config/meu_endereco');
-                        },
-                        child: const Text(
-                          'Editar Endereço',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Color(0xFF963484),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                      child:
+                          _currentUserId == null
+                              ? const Center(child: CircularProgressIndicator())
+                              : _selectedAddress == null
+                              ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Nenhum endereço selecionado.',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () {
+                                        GoRouter.of(context)
+                                            .push('/user_config/meu_endereco')
+                                            .then((_) {
+                                              _carregarDadosEndereco();
+                                            });
+                                      },
+                                      child: const Text(
+                                        'Adicionar/Gerenciar',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Color(0xFF963484),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                              : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Rua: ${_selectedAddress!.rua}, ${_selectedAddress!.numero}',
+                                    style: const TextStyle(fontSize: 18),
+                                  ),
+                                  Text(
+                                    'Bairro: ${_selectedAddress!.bairro}',
+                                    style: const TextStyle(fontSize: 18),
+                                  ),
+                                  Text(
+                                    'Cidade: ${_selectedAddress!.cidade} - ${_selectedAddress!.estado}',
+                                    style: const TextStyle(fontSize: 18),
+                                  ),
+                                  Text(
+                                    'CEP: ${_selectedAddress!.cep}',
+                                    style: const TextStyle(fontSize: 18),
+                                  ),
+                                  if (_selectedAddress!.complemento != null &&
+                                      _selectedAddress!.complemento!.isNotEmpty)
+                                    Text(
+                                      'Complemento: ${_selectedAddress!.complemento}',
+                                      style: const TextStyle(fontSize: 18),
+                                    ),
+                                ],
+                              ),
                     ),
                   ],
                 ),

@@ -1,23 +1,89 @@
-import 'package:doceria_app/model/item_pedido.dart';
+import 'package:doceria_app/model/pedido.dart';
+import 'package:doceria_app/model/status.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:doceria_app/repository/pedido_repository.dart';
+import 'package:doceria_app/repository/usuario_repository.dart';
 
-class HistoricoPedidosPage extends StatelessWidget {
-  final List<Pedido> pedidos;
+class HistoricoPedidosPage extends StatefulWidget {
+  const HistoricoPedidosPage({super.key});
 
-  const HistoricoPedidosPage({super.key, required this.pedidos});
+  @override
+  State<HistoricoPedidosPage> createState() => _HistoricoPedidosPageState();
+}
+
+class _HistoricoPedidosPageState extends State<HistoricoPedidosPage> {
+  List<Pedido> _pedidos = [];
+  bool _isLoading = true;
+  int? _currentUserId;
+
+  final PedidoRepository _pedidoRepository = PedidoRepository();
+  final UsuarioRepository _usuarioRepository = UsuarioRepository();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUserId().then((_) {
+      if (_currentUserId != null) {
+        _loadPedidos();
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentUserEmail = prefs.getString('current_user_email');
+    if (currentUserEmail != null) {
+      final user = await _usuarioRepository.getByEmail(currentUserEmail);
+      setState(() {
+        _currentUserId = user?.id;
+      });
+    }
+  }
+
+  Future<void> _loadPedidos() async {
+    if (_currentUserId == null) return;
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final List<Pedido> loadedPedidos = await _pedidoRepository
+          .getPedidosByUserId(_currentUserId!);
+
+      setState(() {
+        _pedidos = loadedPedidos;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Erro ao carregar histórico de pedidos: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao carregar histórico de pedidos.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Meus Pedidos'),
-        backgroundColor: Color(0xFFFAD6FA),
+        backgroundColor: const Color(0xFFFAD6FA),
         foregroundColor: Colors.black,
         centerTitle: true,
       ),
       body:
-          pedidos.isEmpty
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _pedidos.isEmpty
               ? const Center(
                 child: Text(
                   'Nenhum pedido feito ainda.',
@@ -26,11 +92,11 @@ class HistoricoPedidosPage extends StatelessWidget {
               )
               : ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: pedidos.length,
+                itemCount: _pedidos.length,
                 itemBuilder: (context, index) {
-                  final pedido = pedidos[index];
+                  final pedido = _pedidos[index];
                   final dataFormatada = DateFormat(
-                    'dd/MM/yyyy – HH:mm',
+                    'dd/MM/yyyy HH:mm',
                   ).format(pedido.data);
                   return Card(
                     shape: RoundedRectangleBorder(
@@ -38,51 +104,40 @@ class HistoricoPedidosPage extends StatelessWidget {
                     ),
                     elevation: 3,
                     margin: const EdgeInsets.only(bottom: 16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
+                    child: ListTile(
+                      onTap: () {
+                        GoRouter.of(context)
+                            .push('/user_config/minhas_compras/${pedido.id}')
+                            .then((_) {
+                              _loadPedidos();
+                            });
+                      },
+                      title: Text(
+                        'Pedido #${pedido.id} - $dataFormatada',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Text('Total: R\$ ${pedido.total.toStringAsFixed(2)}'),
                           Text(
-                            'Pedido em $dataFormatada',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ...pedido.itens.map(
-                            (item) => Text(
-                              '${item.quantidade}x ${item.produto.nome}',
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Pagamento: ${pedido.formaPagamento}',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          Text(
-                            'Total: R\$ ${pedido.total.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFB100A5),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Status: ${pedido.status}',
+                            'Status: ${statusToString(pedido.status)}',
                             style: TextStyle(
-                              fontSize: 13,
                               color:
-                                  pedido.status == 'Finalizado'
+                                  pedido.status == StatusPedido.entregue
                                       ? Colors.green
+                                      : pedido.status == StatusPedido.cancelado
+                                      ? Colors.red
                                       : Colors.orange,
+                              fontWeight: FontWeight.bold,
                             ),
+                          ),
+                          Text(
+                            'Itens: ${pedido.itens.map((e) => e.produto.nome).join(', ')}',
                           ),
                         ],
                       ),
+                      trailing: const Icon(Icons.arrow_forward_ios),
                     ),
                   );
                 },
